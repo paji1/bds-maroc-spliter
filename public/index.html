@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel Table Extractor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .drop-zone {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 60px 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: #f8f9ff;
+        }
+
+        .drop-zone:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+
+        .drop-zone.drag-over {
+            border-color: #764ba2;
+            background: #e8ebff;
+            transform: scale(1.02);
+        }
+
+        .drop-zone-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .drop-zone-text {
+            color: #667eea;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .drop-zone-hint {
+            color: #999;
+            font-size: 14px;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .file-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f2ff;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .file-info.show {
+            display: block;
+        }
+
+        .file-name {
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .file-size {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loader {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .loader.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            display: none;
+        }
+
+        .status.show {
+            display: block;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Excel Table Extractor</h1>
+        <p class="subtitle">Extract and combine tables from your Excel files</p>
+
+        <div class="drop-zone" id="dropZone">
+            <div class="drop-zone-icon">📁</div>
+            <div class="drop-zone-text">Drag & Drop Excel File Here</div>
+            <div class="drop-zone-hint">or click to browse</div>
+        </div>
+
+        <input type="file" id="fileInput" accept=".xlsx,.xls">
+
+        <div class="file-info" id="fileInfo">
+            <div class="file-name" id="fileName"></div>
+            <div class="file-size" id="fileSize"></div>
+        </div>
+
+        <button class="btn btn-primary" id="processBtn" disabled>
+            Extract Tables
+        </button>
+
+        <div class="loader" id="loader">
+            <div class="spinner"></div>
+            <div>Processing your file...</div>
+        </div>
+
+        <div class="status" id="status"></div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const processBtn = document.getElementById('processBtn');
+        const loader = document.getElementById('loader');
+        const status = document.getElementById('status');
+
+        let selectedFile = null;
+
+        // Click to browse
+        dropZone.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // Drag and drop handlers
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('drag-over');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            if (!file.name.match(/\.(xlsx|xls)$/i)) {
+                showStatus('Please select a valid Excel file (.xlsx or .xls)', 'error');
+                return;
+            }
+
+            selectedFile = file;
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+            fileInfo.classList.add('show');
+            processBtn.disabled = false;
+            hideStatus();
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        processBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            processBtn.disabled = true;
+            loader.classList.add('show');
+            hideStatus();
+
+            try {
+                const response = await fetch('/extract', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to process file');
+                }
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'combined_output.xlsx';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                showStatus('✅ Tables extracted successfully! Download started.', 'success');
+                
+                // Reset after success
+                setTimeout(() => {
+                    resetForm();
+                }, 3000);
+
+            } catch (error) {
+                showStatus('❌ Error: ' + error.message, 'error');
+                processBtn.disabled = false;
+            } finally {
+                loader.classList.remove('show');
+            }
+        });
+
+        function showStatus(message, type) {
+            status.textContent = message;
+            status.className = 'status show ' + type;
+        }
+
+        function hideStatus() {
+            status.classList.remove('show');
+        }
+
+        function resetForm() {
+            selectedFile = null;
+            fileInput.value = '';
+            fileInfo.classList.remove('show');
+            processBtn.disabled = true;
+            hideStatus();
+        }
+    </script>
+</body>
+</html>
